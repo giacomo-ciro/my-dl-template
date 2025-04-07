@@ -29,7 +29,7 @@ check_config(config)
 dirpath = config["save_dir"] + time.strftime("ymd_%y%m%d_HMS_%H_%M_%S")
 os.mkdir(dirpath)
 with open(os.path.join(dirpath, "config.json"), "w") as f:
-    json.dump(config, f)
+    json.dump(config, f, indent=2)
 
 # Setup logging
 if config["wandb"]:
