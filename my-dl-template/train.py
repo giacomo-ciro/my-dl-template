@@ -33,15 +33,13 @@ with open(os.path.join(dirpath, "config.json"), "w") as f:
 
 # Setup logging
 if config["wandb"]:
-    wandb.login()
-    run = wandb.init(
+    logger = WandbLogger(
         project=config["project_name"],
         config=config,
-        name=config["run_name"] if config["run_name"] else None,
+        name=config["run_name"] if config.get("run_name", 0) else None,
     )
-    wandb.define_metric("valid/mse", summary="min", step_metric="epoch")
-    wandb.define_metric("valid/ce", summary="min", step_metric="epoch")
-    logger = WandbLogger(project=config["project_name"])
+    # To get aggregate metric (automatically compute epoch-level mean)
+    wandb.define_metric("valid/loss", summary="min", step_metric="epoch")
 else:
     logger = CSVLogger(save_dir=".")
 
@@ -56,14 +54,14 @@ checkpointer = ModelCheckpoint(
     dirpath=dirpath,  # Directory to save checkpoints
     filename="epoch_{epoch}_ce_{valid/ce:.2f}",  # Checkpoint filename format
     save_top_k=-1,  # Save the 3 best models
-    monitor="valid/ce",  # Metric to monitor
+    monitor="valid/loss",  # Metric to monitor
     mode="min",  # Mode ('min' for loss, 'max' for accuracy)
     auto_insert_metric_name=False,  # To avoid issues when "/" in metric name
 )
 
 # Early Stopping
 early_stopping = EarlyStopping(
-    monitor="valid/ce",  # Monitor validation cross-entropy loss
+    monitor="valid/loss",  # Monitor validation cross-entropy loss
     patience=2,  # Number of validation checks with no improvement after which training will stop
     min_delta=0.001,  # Minimum change in monitored value to qualify as improvement
     mode="min",  # We want to minimize the loss

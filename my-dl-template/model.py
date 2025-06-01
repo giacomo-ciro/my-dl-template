@@ -36,7 +36,7 @@ class myModel(pl.LightningModule):
 
         return logits, loss
 
-    def step(self, batch, batch_idx):
+    def _common_step(self, batch, batch_idx):
         """
         Handles one step of the model, from reading in the batch to returning the loss.
         """
@@ -50,25 +50,25 @@ class myModel(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         # Get the loss
-        loss = self.step(batch, batch_idx)
+        loss = self._common_step(batch, batch_idx)
 
         # Get model state
         current_lr = self.optimizers().param_groups[0]["lr"]
 
         # Logging
-        self.log("train/ce", loss, on_step=True, on_epoch=False, prog_bar=True)
-        self.log(
-            "learning_rate", current_lr, prog_bar=True, on_step=True, on_epoch=False
-        )
+        self.log_dict({
+            "train/loss": loss,
+            "learning_rate": current_lr,
+        }, on_step=True, on_epoch=False, prog_bar=True)
 
         return loss
 
     def validation_step(self, batch, batch_idx):
         # Get the loss
-        loss = self.step(batch, batch_idx)
+        loss = self._common_step(batch, batch_idx)
 
         # Logging
-        self.log("valid/ce", loss, on_step=False, on_epoch=True, prog_bar=True)
+        self.log("valid/loss", loss, on_step=False, on_epoch=True, prog_bar=True)
 
         return loss
 
@@ -84,18 +84,11 @@ class myModel(pl.LightningModule):
         )
 
         # The 1cycle policy (warm-up + annealing)
+        # use default params
         scheduler = OneCycleLR(
             optimizer,
             max_lr=self.config["max_lr"],
-            total_steps=self.config["total_decay_steps"],
-            pct_start=self.config["pct_start"],  # Warm-up percentage of total steps
-            div_factor=self.config[
-                "div_factor"
-            ],  # Determines initial_lr = max_lr / div_factor
-            final_div_factor=self.config[
-                "final_div_factor"
-            ],  # Determines min_lr = initial_lr / final_div_factor
-            anneal_strategy="cos",
+            total_steps=self.trainer.estimated_stepping_batches,
         )
 
         return {
